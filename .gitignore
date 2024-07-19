@@ -1,0 +1,26 @@
+# Arquivos de configuração específicos do Python
+*.pyc
+*.pyo
+__pycache__/
+
+# Ambiente virtual do Python
+venv/
+env/
+
+# Arquivos de log e dados gerados
+logs/
+*.log
+
+# Arquivos de ambiente
+.env
+
+# Outros arquivos específicos do seu projeto que devem ser ignorados
+# Por exemplo, arquivos de saída da raspagem ou arquivos de dados brutos
+output/
+data/
+
+# Arquivos de configuração específicos do VS Code
+.vscode/
+
+# Arquivos de dependências Python (gerados pelo pip)
+pip-log.txt

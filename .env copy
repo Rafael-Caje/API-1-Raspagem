@@ -1,0 +1,5 @@
+# Copiar esse arquivo e trocar credenciais SUPABASE_URL e SUPABASE_KEY conforme seu acesso
+# Renomear cópia apenas como ".env"
+
+SUPABASE_URL = 'https://xyzcompany.supabase.co' 
+SUPABASE_KEY = 'public-anonymous-key'

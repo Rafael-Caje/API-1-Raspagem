@@ -1,7 +1,10 @@
+from datetime import datetime
+import pytz
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
-import json
+from dateutil.relativedelta import relativedelta
+import re
 
 def get_job_description(job_url):
     response = requests.get(job_url)
@@ -40,53 +43,95 @@ def get_site_name(url):
         return parts[-2]
     return parts[0]
 
-url = 'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location=São%20José%20dos%20Campos%2C%20São%20Paulo%2C%20Brasil&pageNum=0'
-response = requests.get(url)
-if response.status_code == 200:
-    soup = BeautifulSoup(response.text, 'html.parser')
-    job_listings = soup.find_all('div', {'class':'job-search-card'})
-    
-    job_data = []
-    
-    count = 0
-    for job in job_listings:
-        if count >= 10:
-            break
+def get_job_id_from_url(url):
+    match = re.search(r'-(\d+)\?position', url)
+    if match:
+        return match.group(1)
+    return 'N/A'
+
+def scrape_linkedin():
+    url = 'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location=São%20José%20dos%20Campos%2C%20São%20Paulo%2C%20Brasil&pageNum=0'
+    response = requests.get(url)
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        job_listings = soup.find_all('div', {'class':'job-search-card'})
         
-        title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
-        company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
-        location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
+        job_data = []
+        seen_ids = set()
         
-        if "São José dos Campos" not in location:
-            continue
+        count = 0
+        for job in job_listings:
+            if count >= 10:
+                break
+            
+            title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
+            company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
+            location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
+            
+            if "São José dos Campos" not in location:
+                continue
+            
+            anchor_tag = job.find('a', class_='base-card__full-link')
+            href_link = anchor_tag['href']
+            description = get_job_description(href_link)
+            id_vaga = get_job_id_from_url(href_link)
+
+            # Verifica se o ID já foi visto
+            if id_vaga in seen_ids:
+                continue
+
+            def get_posted_time(relative_time_str):
+                now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
+                
+                if "year" in relative_time_str:
+                    num_years = int(relative_time_str.split()[0])
+                    date = now - relativedelta(years=num_years)
+                elif "month" in relative_time_str:
+                    num_months = int(relative_time_str.split()[0])
+                    date = now - relativedelta(months=num_months)
+                elif "week" in relative_time_str:
+                    num_weeks = int(relative_time_str.split()[0])
+                    date = now - relativedelta(weeks=num_weeks)
+                elif "day" in relative_time_str:
+                    num_days = int(relative_time_str.split()[0])
+                    date = now - relativedelta(days=num_days)
+                elif "hour" in relative_time_str:
+                    num_hours = int(relative_time_str.split()[0])
+                    date = now - relativedelta(hours=num_hours)
+                else:
+                    return None
+                
+                return date.strftime("%Y-%m-%d")
+            
+            time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
+            time_tag = job.find('time', {'class': 'job-search-card__listdate'})
+            relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
+
+            posted_time = get_posted_time(relative_time)
+
+            timezone_br = pytz.timezone('America/Sao_Paulo')
+            update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
+            
+            job_dict = {
+                "id_vaga": id_vaga,
+                "local_dado": 'LinkedIn',
+                "nome_vaga": title,
+                "localizacao": location,
+                "tipo_vaga": 'N/A',
+                "area": "N/A",
+                "empresa": company,
+                "descricao": description,
+                "link": href_link,
+                "create_at": posted_time,
+                "update_at": update_at
+            }
+            
+            job_data.append(job_dict)
+            seen_ids.add(id_vaga)
+            
+            count += 1
         
-        anchor_tag = job.find('a', class_='base-card__full-link')
-        href_link = anchor_tag['href']
-        description = get_job_description(href_link)
-        site_name = get_site_name(href_link)
-        
-        time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
-        time_tag = job.find('time', {'class': 'job-search-card__listdate'})
-        posted_time = (time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available")
-        
-        job_dict = {
-            "id_vaga": 'N/A',
-            "local_dado": site_name,
-            "nome_vaga": title,
-            "localizacao": location,
-            "tipo_vaga": 'N/A',
-            "area": "N/A",
-            "empresa": company,
-            "descricao": description,
-            "link": href_link,
-            "create_at": posted_time,
-            "update_at": posted_time
-        }
-        
-        job_data.append(job_dict)
-        
-        count += 1
-    
-    print(json.dumps(job_data, indent=2, ensure_ascii=False))
-else:
-    print("Failed to fetch job listings.")
+        return job_data
+    else:
+        print("Failed to fetch job listings.")
+        return []
