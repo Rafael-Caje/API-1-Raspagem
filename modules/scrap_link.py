@@ -50,88 +50,95 @@ def get_job_id_from_url(url):
     return 'N/A'
 
 def scrape_linkedin():
-    url = 'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location=São%20José%20dos%20Campos%2C%20São%20Paulo%2C%20Brasil&pageNum=0'
-    response = requests.get(url)
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, 'html.parser')
-        job_listings = soup.find_all('div', {'class':'job-search-card'})
-        
-        job_data = []
-        seen_ids = set()
-        
-        count = 0
-        for job in job_listings:
-            if count >= 10:
-                break
-            
-            title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
-            company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
-            location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
-            
-            if "São José dos Campos" not in location:
-                continue
-            
-            anchor_tag = job.find('a', class_='base-card__full-link')
-            href_link = anchor_tag['href']
-            description = get_job_description(href_link)
-            id_vaga = get_job_id_from_url(href_link)
+    cities = [
+        ("São José dos Campos", "São%20José%20dos%20Campos%2C%20São%20Paulo%2C%20Brasil"),
+        ("Taubaté", "Taubaté%2C%20São%20Paulo%2C%20Brasil"),
+        ("Caçapava", "Caçapava%2C%20São%20Paulo%2C%20Brasil"),
+        ("Jacareí", "Jacareí%2C%20São%20Paulo%2C%20Brasil")
+    ]
+    job_data = []
 
-            # Verifica se o ID já foi visto
-            if id_vaga in seen_ids:
-                continue
-
-            def get_posted_time(relative_time_str):
-                now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
+    for city in cities:
+        url = f'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location={city}&pageNum=0'
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            job_listings = soup.find_all('div', {'class':'job-search-card'})
+            
+            seen_ids = set()
+            
+            count = 0
+            for job in job_listings:
+                if count >= 10:
+                    break
                 
-                if "year" in relative_time_str:
-                    num_years = int(relative_time_str.split()[0])
-                    date = now - relativedelta(years=num_years)
-                elif "month" in relative_time_str:
-                    num_months = int(relative_time_str.split()[0])
-                    date = now - relativedelta(months=num_months)
-                elif "week" in relative_time_str:
-                    num_weeks = int(relative_time_str.split()[0])
-                    date = now - relativedelta(weeks=num_weeks)
-                elif "day" in relative_time_str:
-                    num_days = int(relative_time_str.split()[0])
-                    date = now - relativedelta(days=num_days)
-                elif "hour" in relative_time_str:
-                    num_hours = int(relative_time_str.split()[0])
-                    date = now - relativedelta(hours=num_hours)
-                else:
-                    return None
+                title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
+                company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
+                location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
                 
-                return date.strftime("%Y-%m-%d")
-            
-            time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
-            time_tag = job.find('time', {'class': 'job-search-card__listdate'})
-            relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
+                if not any(city_name in location for city_name in ["São José dos Campos", "Taubaté", "Caçapava", "Jacareí"]):
+                    continue
+                
+                anchor_tag = job.find('a', class_='base-card__full-link')
+                href_link = anchor_tag['href']
+                description = get_job_description(href_link)
+                id_vaga = get_job_id_from_url(href_link)
 
-            posted_time = get_posted_time(relative_time)
+                # Verifica se o ID já foi visto
+                if id_vaga in seen_ids:
+                    continue
 
-            timezone_br = pytz.timezone('America/Sao_Paulo')
-            update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
-            
-            job_dict = {
-                "id_vaga": id_vaga,
-                "local_dado": 'LinkedIn',
-                "nome_vaga": title,
-                "localizacao": location,
-                "tipo_vaga": 'N/A',
-                "area": "N/A",
-                "empresa": company,
-                "descricao": description,
-                "link": href_link,
-                "create_at": posted_time,
-                "update_at": update_at
-            }
-            
-            job_data.append(job_dict)
-            seen_ids.add(id_vaga)
-            
-            count += 1
-        
-        return job_data
-    else:
-        print("Failed to fetch job listings.")
-        return []
+                def get_posted_time(relative_time_str):
+                    now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
+                    
+                    if "year" in relative_time_str:
+                        num_years = int(relative_time_str.split()[0])
+                        date = now - relativedelta(years=num_years)
+                    elif "month" in relative_time_str:
+                        num_months = int(relative_time_str.split()[0])
+                        date = now - relativedelta(months=num_months)
+                    elif "week" in relative_time_str:
+                        num_weeks = int(relative_time_str.split()[0])
+                        date = now - relativedelta(weeks=num_weeks)
+                    elif "day" in relative_time_str:
+                        num_days = int(relative_time_str.split()[0])
+                        date = now - relativedelta(days=num_days)
+                    elif "hour" in relative_time_str:
+                        num_hours = int(relative_time_str.split()[0])
+                        date = now - relativedelta(hours=num_hours)
+                    else:
+                        return None
+                    
+                    return date.strftime("%Y-%m-%d")
+                
+                time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
+                time_tag = job.find('time', {'class': 'job-search-card__listdate'})
+                relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
+
+                posted_time = get_posted_time(relative_time)
+
+                timezone_br = pytz.timezone('America/Sao_Paulo')
+                update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
+                
+                job_dict = {
+                    "id_vaga": id_vaga,
+                    "local_dado": 'LinkedIn',
+                    "nome_vaga": title,
+                    "localizacao": location,
+                    "tipo_vaga": 'N/A',
+                    "area": "N/A",
+                    "empresa": company,
+                    "descricao": description,
+                    "link": href_link,
+                    "create_at": posted_time,
+                    "update_at": update_at
+                }
+                
+                job_data.append(job_dict)
+                seen_ids.add(id_vaga)
+                
+                count += 1
+        else:
+            print(f"Failed to fetch job listings for {city}.")
+    
+    return job_data
