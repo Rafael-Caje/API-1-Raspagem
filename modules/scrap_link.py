@@ -49,6 +49,28 @@ def get_job_id_from_url(url):
         return match.group(1)
     return 'N/A'
 
+def get_posted_time(relative_time_str):
+    now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    if "year" in relative_time_str:
+        num_years = int(relative_time_str.split()[0])
+        date = now - relativedelta(years=num_years)
+    elif "month" in relative_time_str:
+        num_months = int(relative_time_str.split()[0])
+        date = now - relativedelta(months=num_months)
+    elif "week" in relative_time_str:
+        num_weeks = int(relative_time_str.split()[0])
+        date = now - relativedelta(weeks=num_weeks)
+    elif "day" in relative_time_str:
+        num_days = int(relative_time_str.split()[0])
+        date = now - relativedelta(days=num_days)
+    elif "hour" in relative_time_str or "minute" in relative_time_str:
+        date = now
+    else:
+        return None
+    
+    return date.strftime("%Y-%m-%d")
+
 def scrape_linkedin():
     cities = [
         ("São José dos Campos", "São%20José%20dos%20Campos%2C%20São%20Paulo%2C%20Brasil"),
@@ -58,8 +80,8 @@ def scrape_linkedin():
     ]
     job_data = []
 
-    for city in cities:
-        url = f'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location={city}&pageNum=0'
+    for city_name, city_url in cities:
+        url = f'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location={city_url}&pageNum=0'
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
@@ -76,7 +98,7 @@ def scrape_linkedin():
                 company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
                 location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
                 
-                if not any(city_name in location for city_name in ["São José dos Campos", "Taubaté", "Caçapava", "Jacareí"]):
+                if not any(city_part in location for city_part in ["São José dos Campos", "Taubaté", "Caçapava", "Jacareí"]):
                     continue
                 
                 anchor_tag = job.find('a', class_='base-card__full-link')
@@ -84,33 +106,9 @@ def scrape_linkedin():
                 description = get_job_description(href_link)
                 id_vaga = get_job_id_from_url(href_link)
 
-                # Verifica se o ID já foi visto
                 if id_vaga in seen_ids:
                     continue
 
-                def get_posted_time(relative_time_str):
-                    now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
-                    
-                    if "year" in relative_time_str:
-                        num_years = int(relative_time_str.split()[0])
-                        date = now - relativedelta(years=num_years)
-                    elif "month" in relative_time_str:
-                        num_months = int(relative_time_str.split()[0])
-                        date = now - relativedelta(months=num_months)
-                    elif "week" in relative_time_str:
-                        num_weeks = int(relative_time_str.split()[0])
-                        date = now - relativedelta(weeks=num_weeks)
-                    elif "day" in relative_time_str:
-                        num_days = int(relative_time_str.split()[0])
-                        date = now - relativedelta(days=num_days)
-                    elif "hour" in relative_time_str:
-                        num_hours = int(relative_time_str.split()[0])
-                        date = now - relativedelta(hours=num_hours)
-                    else:
-                        return None
-                    
-                    return date.strftime("%Y-%m-%d")
-                
                 time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
                 time_tag = job.find('time', {'class': 'job-search-card__listdate'})
                 relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
@@ -139,6 +137,6 @@ def scrape_linkedin():
                 
                 count += 1
         else:
-            print(f"Failed to fetch job listings for {city}.")
+            print(f"Failed to fetch job listings for {city_name}.")
     
     return job_data
