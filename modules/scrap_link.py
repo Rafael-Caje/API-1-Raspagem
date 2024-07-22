@@ -5,8 +5,9 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse
 from dateutil.relativedelta import relativedelta
 import re
+import time
 
-def get_job_description(job_url):
+def get_job_description_and_details(job_url):
     response = requests.get(job_url)
     if response.status_code == 200:
         job_soup = BeautifulSoup(response.text, 'html.parser')
@@ -30,9 +31,25 @@ def get_job_description(job_url):
             else:
                 description = ' '.join(description_words)
                 
-            return description
+        else:
+            description = "Description not available"
+        
+        job_criteria = job_soup.find_all('li', {'class': 'description__job-criteria-item'})
+        area = "N/A"
+        tipo_vaga = "N/A"
+        
+        for criteria in job_criteria:
+            subheader = criteria.find('h3', {'class': 'description__job-criteria-subheader'}).text.strip()
+            criteria_text = criteria.find('span', {'class': 'description__job-criteria-text'}).text.strip()
+            
+            if subheader == "Setores":
+                area = criteria_text
+            elif subheader == "Tipo de emprego":
+                tipo_vaga = criteria_text
+        
+        return description, area, tipo_vaga
     
-    return "Description not available"
+    return "Description not available", "N/A", "N/A"
 
 def get_site_name(url):
     domain = urlparse(url).netloc
@@ -47,7 +64,7 @@ def get_job_id_from_url(url):
     match = re.search(r'-(\d+)\?position', url)
     if match:
         return match.group(1)
-    return 'N/A'
+    return None
 
 def get_posted_time(relative_time_str):
     now = datetime.now(pytz.timezone('America/Sao_Paulo')).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -78,65 +95,76 @@ def scrape_linkedin():
         ("Caçapava", "Caçapava%2C%20São%20Paulo%2C%20Brasil"),
         ("Jacareí", "Jacareí%2C%20São%20Paulo%2C%20Brasil")
     ]
+    
+    job_titles = [
+        "Desenvolvedor",
+        "Estágio%2Bcomputação"
+    ]
+    
     job_data = []
 
     for city_name, city_url in cities:
-        url = f'https://www.linkedin.com/jobs/search?keywords=Tecnologia%20Da%20Informação&location={city_url}&pageNum=0'
-        response = requests.get(url)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            job_listings = soup.find_all('div', {'class':'job-search-card'})
-            
-            seen_ids = set()
-            
-            count = 0
-            for job in job_listings:
-                if count >= 10:
-                    break
+        for job_title in job_titles:
+            url = f'https://www.linkedin.com/jobs/search?keywords={job_title}&location={city_url}&pageNum=0'
+            response = requests.get(url)
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.text, 'html.parser')
+                job_listings = soup.find_all('div', {'class':'job-search-card'})
                 
-                title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
-                company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
-                location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
+                seen_ids = set()
                 
-                if not any(city_part in location for city_part in ["São José dos Campos", "Taubaté", "Caçapava", "Jacareí"]):
-                    continue
-                
-                anchor_tag = job.find('a', class_='base-card__full-link')
-                href_link = anchor_tag['href']
-                description = get_job_description(href_link)
-                id_vaga = get_job_id_from_url(href_link)
+                count = 0
+                current_job_data = []
+                for job in job_listings:
+                    if count >= 5:  
+                        break
+                    
+                    title = job.find('h3', {'class': 'base-search-card__title'}).text.strip()
+                    company = job.find('a', {'class': 'hidden-nested-link'}).text.strip()
+                    location = job.find('span', {'class': 'job-search-card__location'}).text.strip()
+                    
+                    if not any(city_part in location for city_part in ["São José dos Campos", "Taubaté", "Caçapava", "Jacareí"]):
+                        continue
+                    
+                    anchor_tag = job.find('a', class_='base-card__full-link')
+                    href_link = anchor_tag['href']
+                    description, area, tipo_vaga = get_job_description_and_details(href_link)
+                    id_vaga = get_job_id_from_url(href_link)
 
-                if id_vaga in seen_ids:
-                    continue
+                    if id_vaga is None or id_vaga in seen_ids:
+                        continue
 
-                time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
-                time_tag = job.find('time', {'class': 'job-search-card__listdate'})
-                relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
+                    time_tag_new = job.find('time', {'class': 'job-search-card__listdate--new'})
+                    time_tag = job.find('time', {'class': 'job-search-card__listdate'})
+                    relative_time = time_tag_new.text.strip() if time_tag_new else time_tag.text.strip() if time_tag else "Not available"
 
-                posted_time = get_posted_time(relative_time)
+                    posted_time = get_posted_time(relative_time)
 
-                timezone_br = pytz.timezone('America/Sao_Paulo')
-                update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
+                    timezone_br = pytz.timezone('America/Sao_Paulo')
+                    update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
+                    
+                    job_dict = {
+                        "id_vaga": id_vaga,
+                        "local_dado": 'LinkedIn',
+                        "nome_vaga": title,
+                        "localizacao": location,
+                        "tipo_vaga": tipo_vaga,
+                        "area": area,
+                        "empresa": company,
+                        "descricao": description,
+                        "link": href_link,
+                        "create_at": posted_time,
+                        "update_at": update_at
+                    }
+                    
+                    current_job_data.append(job_dict)
+                    seen_ids.add(id_vaga)
+                    
+                    count += 1
+                    
+                    time.sleep(60)
                 
-                job_dict = {
-                    "id_vaga": id_vaga,
-                    "local_dado": 'LinkedIn',
-                    "nome_vaga": title,
-                    "localizacao": location,
-                    "tipo_vaga": 'N/A',
-                    "area": "N/A",
-                    "empresa": company,
-                    "descricao": description,
-                    "link": href_link,
-                    "create_at": posted_time,
-                    "update_at": update_at
-                }
-                
-                job_data.append(job_dict)
-                seen_ids.add(id_vaga)
-                
-                count += 1
-        else:
-            print(f"Failed to fetch job listings for {city_name}.")
+                job_data.extend(current_job_data)
+            time.sleep(60)
     
     return job_data
