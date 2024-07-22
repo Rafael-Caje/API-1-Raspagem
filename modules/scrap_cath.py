@@ -37,25 +37,25 @@ def scrape_catho():
     city_query = '?cidade_id[0]=776&cidade_id[1]=392&cidade_id[2]=839&cidade_id[3]=143'
     date_query = '&lastDays=30'
     area_queries = {
-        'Administração': '&area_id[0]=1&area_id[1]=3&area_id[2]=12&area_id[3]=20&area_id[4]=47&area_id[5]=67&area_id[6]=69&area_id[7]=73&area_id[8]=74&area_id[9]=75&area_id[10]=1906&area_id[11]=1937',
-        'Comercial e Vendas': '&area_id[0]=14',
-        'Comércio Exterior': '&area_id[0]=15&area_id[1]=70',
-        'Educação': '&area_id[0]=24&area_id[1]=87',
-        'Financeira':' &area_id[0]=2&area_id[1]=11&area_id[2]=19&area_id[3]=23&area_id[4]=40&area_id[5]=76',
-        'Hotelaria e Turismo': '&area_id[0]=48&area_id[1]=72',
-        'T.I': '&area_id[0]=51&area_id[1]=52',
-        'Saúde': '&area_id[0]=13&area_id[1]=26&area_id[2]=39&area_id[3]=41&area_id[4]=43&area_id[5]=45&area_id[6]=46&area_id[7]=58&area_id[8]=61&area_id[9]=62&area_id[10]=65&area_id[11]=1902',
-        'Suprimentos': '&area_id[0]=55&area_id[1]=88',
-        'Agricultura, Pecuária e Veterinária': '&area_id[0]=1858&area_id[1]=1859&area_id[2]=1904&area_id[3]=1943',
-        'Artes, Arquitetura e Design': '&area_id[0]=5&area_id[1]=6&area_id[2]=7&area_id[3]=21&area_id[4]=60',
-        'Comunicação / Marketing': '&area_id[0]=53&area_id[1]=57&area_id[2]=66&area_id[3]=71&area_id[4]=1965',
-        'Engenharia': '&area_id[0]=18&area_id[1]=29&area_id[2]=30&area_id[3]=31&area_id[4]=32&area_id[5]=34&area_id[6]=35&area_id[7]=36&area_id[8]=37&area_id[9]=38&area_id[10]=483&area_id[11]=484',
-        'Industrial': '&area_id[0]=9&area_id[1]=10&area_id[2]=25&area_id[3]=50&area_id[4]=56',
-        'Jurídica': '&area_id[5]=54',
-        'Técnica': '&area_id[0]=79&area_id[1]=80',
-        'Telemarketing': '&area_id[2]=8',
-        'Telecomunicações': '&area_id[3]=33',
-        'Serviços Sociais': '&area_id[4]=77'
+        'Administração': generate_area_query([1, 3, 12, 20, 47, 67, 69, 73, 74, 75, 1906, 1937]),
+        'Comercial e Vendas': generate_area_query([14]),
+        'Comércio Exterior': generate_area_query([15, 70]),
+        'Educação': generate_area_query([24, 87]),
+        'Financeira': generate_area_query([2, 11, 19, 23, 40, 76]),
+        'Hotelaria e Turismo': generate_area_query([48, 72]),
+        'T.I': generate_area_query([51, 52]),
+        'Saúde': generate_area_query([13, 26, 39, 41, 43, 45, 46, 58, 61, 62, 65, 1902]),
+        'Suprimentos': generate_area_query([55, 88]),
+        'Agricultura, Pecuária e Veterinária': generate_area_query([1858, 1859, 1904, 1943]),
+        'Artes, Arquitetura e Design': generate_area_query([5, 6, 7, 21, 60]),
+        'Comunicação / Marketing': generate_area_query([53, 57, 66, 71, 1965]),
+        'Engenharia': generate_area_query([18, 29, 30, 31, 32, 34, 35, 36, 37, 38, 483, 484]),
+        'Industrial': generate_area_query([9, 10, 25, 50, 56]),
+        'Jurídica': generate_area_query([54]),
+        'Técnica': generate_area_query([79, 80]),
+        'Telemarketing': generate_area_query([8]),
+        'Telecomunicações': generate_area_query([33]),
+        'Serviços Sociais': generate_area_query([77])
     }
     
     headers = {
@@ -68,14 +68,9 @@ def scrape_catho():
     for base_url in base_urls:
         for keyword in keywords:
             for area_name, area_query in area_queries.items():
-                if 'estagio' in base_url:
-                    url = f"{base_url.replace('/estagio/', '/estagio-')}{keyword}/{city_query}{area_query}{date_query}"
-                elif 'estagiario' in base_url:
-                    url = f"{base_url.replace('/estagiario/', '/estagiario-')}{keyword}/{city_query}{area_query}{date_query}"
-                else:
-                    url = f"{base_url}{keyword}/{city_query}{area_query}{date_query}"
+                url = f"{base_url}{keyword}/{city_query}{area_query}{date_query}"
                 
-                time.sleep(random.uniform(0, 1))
+                # time.sleep(random.uniform(0, 1))
                 
                 response = requests.get(url, headers=headers)
                 
@@ -116,7 +111,7 @@ def scrape_catho():
                         if localizacao == 'Vale do Paraíba':
                             continue
                         
-                        tipo_vaga = 'Estágio' if 'estagio' in base_url or 'estagiario' in base_url else job_data.get('regimeContrato', 'N/A')
+                        tipo_vaga = 'Estágio' if 'estagi' in normalize_text(nome_vaga) else 'Contratos (CLT, PJ, outros)'
                         
                         area = ''
                         for area_key, area_query in area_queries.items():
@@ -145,8 +140,8 @@ def scrape_catho():
                         timezone_br = pytz.timezone('America/Sao_Paulo')
                         update_at = datetime.now(timezone_br).strftime("%Y-%m-%d")
                         
-                        if any(field in [id_vaga, nome_vaga, localizacao, tipo_vaga, area, empresa, descricao, create_at] for field in ['N/A', '']):
-                            continue
+                        # if any(field in [id_vaga, nome_vaga, localizacao, tipo_vaga, area, empresa, descricao, create_at] for field in ['N/A', '']):
+                        #     continue
                         
                         jobs.append({
                             'id_vaga': id_vaga,
@@ -163,8 +158,9 @@ def scrape_catho():
                         })
                         
                         processed_ids.add(id_vaga)
-    
-    return jobs
+                        
+    limited_cath = jobs[:10]
+    return limited_cath
 
 # if __name__ == "__main__":
 #     jobs = scrape_catho()[:20]

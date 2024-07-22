@@ -1,3 +1,4 @@
+from flask import Flask, jsonify
 import sys
 import os
 
@@ -7,13 +8,16 @@ from modules.scrap_cath import scrape_catho
 from modules.scrap_link import scrape_linkedin
 from database.database import insert_job_data
 
-def main():
+app = Flask(__name__)
+
+@app.route('/run-scraper', methods=['POST'])
+def run_scraper():
     linkedin_jobs = scrape_linkedin()
     catho_jobs = scrape_catho()
     all_jobs = catho_jobs + linkedin_jobs
     response = insert_job_data(all_jobs)
-    print(response)
+    return jsonify(response)
 
 if __name__ == '__main__':
-    main()
+    app.run(host='0.0.0.0', port=5000)
     

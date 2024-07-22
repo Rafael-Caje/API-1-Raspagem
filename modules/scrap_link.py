@@ -166,5 +166,6 @@ def scrape_linkedin():
                 
                 job_data.extend(current_job_data)
             time.sleep(60)
-    
-    return job_data
+
+    limited_link = job_data[:10]
+    return limited_link
