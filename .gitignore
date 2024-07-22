@@ -24,3 +24,6 @@ data/
 
 # Arquivos de dependências Python (gerados pelo pip)
 pip-log.txt
+
+# Ignorar arquivos com "backup" no nome
+*backup*

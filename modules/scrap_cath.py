@@ -20,23 +20,42 @@ def get_city_from_ids(city_list):
                 return city.get('cidade')
     return 'Vale do Paraíba'
 
+
+def generate_area_query(ids):
+    return '&' + '&'.join(f'area_id[{i}]={id}' for i, id in enumerate(ids))
+
 def scrape_catho():
     base_urls = [
-        'https://www.catho.com.br/vagas/',
-        'https://www.catho.com.br/vagas/estagio/',
-        'https://www.catho.com.br/vagas/estagiario/'
+        'https://www.catho.com.br/vagas/'
     ]
     
-    keywords = [
-        'excel'
-    ]
+    keywords = ['desenvolvimento-de-software', 'analise-de-sistemas', 'programacao', 'arquitetura-de-software', 'sql',
+                'big-data', 'gestao-de-producao', 'controle-de-qualidade', 'gestao-empresarial', 'planejamento-estrategico',
+                'gestao-de-projetos', 'supply-chain-management', 'logistica-internacional', 'manufatura-inteligente', 'industria-4-0',
+                'manutencao-aeronautica', 'engenharia-de-manutencao', 'aviacao-comercial', 'projetos-aeronauticos', 'analise-estrutural']
     
     city_query = '?cidade_id[0]=776&cidade_id[1]=392&cidade_id[2]=839&cidade_id[3]=143'
     date_query = '&lastDays=30'
     area_queries = {
         'Administração': '&area_id[0]=1&area_id[1]=3&area_id[2]=12&area_id[3]=20&area_id[4]=47&area_id[5]=67&area_id[6]=69&area_id[7]=73&area_id[8]=74&area_id[9]=75&area_id[10]=1906&area_id[11]=1937',
         'Comercial e Vendas': '&area_id[0]=14',
-        'Comércio Exterior': '&area_id[0]=15&area_id[1]=70'
+        'Comércio Exterior': '&area_id[0]=15&area_id[1]=70',
+        'Educação': '&area_id[0]=24&area_id[1]=87',
+        'Financeira':' &area_id[0]=2&area_id[1]=11&area_id[2]=19&area_id[3]=23&area_id[4]=40&area_id[5]=76',
+        'Hotelaria e Turismo': '&area_id[0]=48&area_id[1]=72',
+        'T.I': '&area_id[0]=51&area_id[1]=52',
+        'Saúde': '&area_id[0]=13&area_id[1]=26&area_id[2]=39&area_id[3]=41&area_id[4]=43&area_id[5]=45&area_id[6]=46&area_id[7]=58&area_id[8]=61&area_id[9]=62&area_id[10]=65&area_id[11]=1902',
+        'Suprimentos': '&area_id[0]=55&area_id[1]=88',
+        'Agricultura, Pecuária e Veterinária': '&area_id[0]=1858&area_id[1]=1859&area_id[2]=1904&area_id[3]=1943',
+        'Artes, Arquitetura e Design': '&area_id[0]=5&area_id[1]=6&area_id[2]=7&area_id[3]=21&area_id[4]=60',
+        'Comunicação / Marketing': '&area_id[0]=53&area_id[1]=57&area_id[2]=66&area_id[3]=71&area_id[4]=1965',
+        'Engenharia': '&area_id[0]=18&area_id[1]=29&area_id[2]=30&area_id[3]=31&area_id[4]=32&area_id[5]=34&area_id[6]=35&area_id[7]=36&area_id[8]=37&area_id[9]=38&area_id[10]=483&area_id[11]=484',
+        'Industrial': '&area_id[0]=9&area_id[1]=10&area_id[2]=25&area_id[3]=50&area_id[4]=56',
+        'Jurídica': '&area_id[5]=54',
+        'Técnica': '&area_id[0]=79&area_id[1]=80',
+        'Telemarketing': '&area_id[2]=8',
+        'Telecomunicações': '&area_id[3]=33',
+        'Serviços Sociais': '&area_id[4]=77'
     }
     
     headers = {
@@ -56,7 +75,7 @@ def scrape_catho():
                 else:
                     url = f"{base_url}{keyword}/{city_query}{area_query}{date_query}"
                 
-                time.sleep(random.uniform(2, 3))
+                time.sleep(random.uniform(0, 1))
                 
                 response = requests.get(url, headers=headers)
                 
@@ -146,3 +165,9 @@ def scrape_catho():
                         processed_ids.add(id_vaga)
     
     return jobs
+
+# if __name__ == "__main__":
+#     jobs = scrape_catho()[:20]
+#     print(f"Total de vagas encontradas: {len(jobs)}")
+#     for job in jobs:
+#         print(job)
